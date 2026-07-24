@@ -1,0 +1,3 @@
+// config.js - Stored once, never overwritten
+const SUPABASE_URL = 'https://elicoropgfhwkjzmwezn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsaWNvcm9wZ2Zod2tqem13ZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDE2MzQsImV4cCI6MjEwMDQ3NzYzNH0.NPnzkx6Jej9MutywBjR0tZL4hnsqUvgkOrqV335AAUI';
