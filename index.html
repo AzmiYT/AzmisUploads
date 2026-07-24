@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StreamHub - Personal Video Platform</title>
   
-  <!-- Supabase CDN JS Client -->
+  <!-- Supabase CDN Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Config File (Your Credentials) -->
+  <script src="config.js"></script>
 
   <style>
     /* Reset & Base Styles */
@@ -186,14 +189,14 @@
       inset: 0;
       background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(4px);
-      z-index: 50;
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 1rem;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s ease;
     }
 
     .modal-overlay.open {
@@ -282,7 +285,7 @@
       </div>
     </section>
 
-    <!-- Right Column: Permanent Stream Feed -->
+    <!-- Right Column: Feed -->
     <section>
       <h2 class="sidebar-title">Uploaded Videos</h2>
       <div class="video-list" id="videoList">
@@ -320,15 +323,10 @@
     </div>
   </div>
 
-  <!-- Supabase Integration Script -->
+  <!-- Application Logic -->
   <script>
-    // ----------------------------------------------------
-    // YOUR SUPABASE CREDENTIALS
-    // ----------------------------------------------------
-    const SUPABASE_URL = 'https://elicoropgfhwkjzmwezn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsaWNvcm9wZ2Zod2tqem13ZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDE2MzQsImV4cCI6MjEwMDQ3NzYzNH0.NPnzkx6Jej9MutywBjR0tZL4hnsqUvgkOrqV335AAUI';
-    
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialize client from window object using credentials from config.js
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // DOM Elements
     const mainPlayer = document.getElementById('mainPlayer');
@@ -347,7 +345,7 @@
 
     // 1. Fetch & Render All Uploads from Supabase
     async function fetchVideos() {
-      const { data: videos, error } = await supabase
+      const { data: videos, error } = await supabaseClient
         .from('videos')
         .select('*')
         .order('created_at', { ascending: false });
@@ -405,10 +403,10 @@
     }
 
     // 3. Modal Controls
-    openModalBtn.onclick = () => modal.classList.add('open');
-    closeModalBtn.onclick = () => modal.classList.remove('open');
+    if (openModalBtn) openModalBtn.onclick = () => modal.classList.add('open');
+    if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.remove('open');
 
-    // 4. Handle Permanent Upload to Bucket & Table
+    // 4. Handle Upload
     uploadForm.onsubmit = async (e) => {
       e.preventDefault();
 
@@ -427,20 +425,20 @@
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `public/${fileName}`;
 
-        // Upload file to 'videos' bucket
-        const { error: uploadError } = await supabase.storage
+        // Upload to bucket
+        const { error: uploadError } = await supabaseClient.storage
           .from('videos')
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         // Get public URL
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = supabaseClient.storage
           .from('videos')
           .getPublicUrl(filePath);
 
-        // Insert metadata row into table
-        const { error: dbError } = await supabase
+        // Insert metadata row
+        const { error: dbError } = await supabaseClient
           .from('videos')
           .insert([{ title, description, video_url: urlData.publicUrl }]);
 
