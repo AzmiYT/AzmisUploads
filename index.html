@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamHub - Personal Video Platform</title>
+  
+  <!-- Supabase CDN JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* Reset & Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #1e293b;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background-color: #38bdf8;
+      color: #020617;
+      border: none;
+      padding: 0.5rem 1.25rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover {
+      background-color: #7dd3fc;
+    }
+
+    .btn-primary:disabled {
+      background-color: #64748b;
+      cursor: not-allowed;
+    }
+
+    /* Layout */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 1024px) {
+      main {
+        grid-template-columns: 2fr 1fr;
+      }
+    }
+
+    /* Video Player */
+    .player-container {
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .video-info {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+      border-radius: 1rem;
+      margin-top: 1rem;
+    }
+
+    .video-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .video-meta {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+
+    .video-description {
+      font-size: 0.875rem;
+      color: #cbd5e1;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #1e293b;
+    }
+
+    /* Sidebar Feed */
+    .sidebar-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .video-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .video-card {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(30, 41, 59, 0.8);
+      background-color: rgba(15, 23, 42, 0.5);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .video-card:hover {
+      border-color: #334155;
+      background-color: #0f172a;
+    }
+
+    .video-card.active {
+      border-color: rgba(56, 189, 248, 0.5);
+      background-color: #1e293b;
+    }
+
+    .card-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-width: 0;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 440px;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-group input, .form-group textarea {
+      width: 100%;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      color: #fff;
+      font-size: 0.875rem;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group textarea:focus {
+      border-color: #38bdf8;
+    }
+
+    .form-group textarea {
+      resize: none;
+    }
+
+    .empty-feed {
+      color: #64748b;
+      font-size: 0.875rem;
+      padding: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="logo">🎬 StreamHub</div>
+    <button class="btn-primary" id="openModalBtn">+ Upload Video</button>
+  </header>
+
+  <!-- Main Grid -->
+  <main>
+    <!-- Left Column: Video Player -->
+    <section>
+      <div class="player-container">
+        <video id="mainPlayer" controls></video>
+      </div>
+
+      <div class="video-info">
+        <h1 class="video-title" id="activeTitle">No video selected</h1>
+        <div class="video-meta" id="activeMeta">--</div>
+        <p class="video-description" id="activeDesc">Upload a video to get started.</p>
+      </div>
+    </section>
+
+    <!-- Right Column: Permanent Stream Feed -->
+    <section>
+      <h2 class="sidebar-title">Uploaded Videos</h2>
+      <div class="video-list" id="videoList">
+        <div class="empty-feed">Loading videos...</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Upload Modal -->
+  <div class="modal-overlay" id="uploadModal">
+    <div class="modal-content">
+      <button class="close-btn" id="closeModalBtn">&times;</button>
+      <h2 style="font-size: 1.125rem; margin-bottom: 1rem;">Upload Video to Cloud</h2>
+      
+      <form id="uploadForm">
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="inputTitle" placeholder="Video title..." required>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="inputDesc" rows="3" placeholder="What is this video about?"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Video File</label>
+          <input type="file" id="inputFile" accept="video/*" required>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
+          Publish Video
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Supabase Integration Script -->
+  <script>
+    // ----------------------------------------------------
+    // YOUR SUPABASE CREDENTIALS
+    // ----------------------------------------------------
+    const SUPABASE_URL = 'https://elicoropgfhwkjzmwezn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsaWNvcm9wZ2Zod2tqem13ZXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDE2MzQsImV4cCI6MjEwMDQ3NzYzNH0.NPnzkx6Jej9MutywBjR0tZL4hnsqUvgkOrqV335AAUI';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM Elements
+    const mainPlayer = document.getElementById('mainPlayer');
+    const activeTitle = document.getElementById('activeTitle');
+    const activeMeta = document.getElementById('activeMeta');
+    const activeDesc = document.getElementById('activeDesc');
+    const videoList = document.getElementById('videoList');
+
+    const modal = document.getElementById('uploadModal');
+    const openModalBtn = document.getElementById('openModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    let currentActiveId = null;
+
+    // 1. Fetch & Render All Uploads from Supabase
+    async function fetchVideos() {
+      const { data: videos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching videos:', error);
+        videoList.innerHTML = '<div class="empty-feed">Failed to load videos. Check console/keys.</div>';
+        return;
+      }
+
+      videoList.innerHTML = '';
+
+      if (!videos || videos.length === 0) {
+        videoList.innerHTML = '<div class="empty-feed">No videos uploaded yet!</div>';
+        activeTitle.textContent = 'No video selected';
+        activeMeta.textContent = '--';
+        activeDesc.textContent = 'Upload a video to get started.';
+        mainPlayer.src = '';
+        return;
+      }
+
+      // Default to the latest upload on start
+      if (!currentActiveId) {
+        selectVideo(videos[0]);
+      }
+
+      videos.forEach(vid => {
+        const card = document.createElement('div');
+        card.className = `video-card ${vid.id === currentActiveId ? 'active' : ''}`;
+        card.onclick = () => selectVideo(vid);
+
+        const uploadDate = new Date(vid.created_at).toLocaleDateString();
+
+        card.innerHTML = `
+          <div class="card-details">
+            <div class="card-title">${vid.title}</div>
+            <div class="video-meta">Uploaded on ${uploadDate}</div>
+          </div>
+        `;
+        videoList.appendChild(card);
+      });
+    }
+
+    // 2. Play Selected Video
+    function selectVideo(video) {
+      currentActiveId = video.id;
+      mainPlayer.src = video.video_url;
+      mainPlayer.play().catch(() => {});
+
+      activeTitle.textContent = video.title;
+      activeMeta.textContent = `Uploaded on ${new Date(video.created_at).toLocaleDateString()}`;
+      activeDesc.textContent = video.description || 'No description provided.';
+
+      fetchVideos();
+    }
+
+    // 3. Modal Controls
+    openModalBtn.onclick = () => modal.classList.add('open');
+    closeModalBtn.onclick = () => modal.classList.remove('open');
+
+    // 4. Handle Permanent Upload to Bucket & Table
+    uploadForm.onsubmit = async (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById('inputTitle').value;
+      const description = document.getElementById('inputDesc').value;
+      const fileInput = document.getElementById('inputFile');
+      const file = fileInput.files[0];
+
+      if (!file) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading to Cloud...';
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `public/${fileName}`;
+
+        // Upload file to 'videos' bucket
+        const { error: uploadError } = await supabase.storage
+          .from('videos')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('videos')
+          .getPublicUrl(filePath);
+
+        // Insert metadata row into table
+        const { error: dbError } = await supabase
+          .from('videos')
+          .insert([{ title, description, video_url: urlData.publicUrl }]);
+
+        if (dbError) throw dbError;
+
+        uploadForm.reset();
+        modal.classList.remove('open');
+        fetchVideos();
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+        console.error(err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Publish Video';
+      }
+    };
+
+    // Load initial feed
+    fetchVideos();
+  </script>
+</body>
+</html>
